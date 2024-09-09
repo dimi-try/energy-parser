@@ -42,6 +42,13 @@ async def create_tables(conn):
         )
     ''')
 
+    await conn.execute('''
+        CREATE TABLE IF NOT EXISTS errors (
+            id SERIAL PRIMARY KEY,
+            message TEXT NOT NULL
+        )
+    ''')
+
 async def save_energy_drink_to_db(conn, name, model, rating, description, date):
     # Вставляем данные об энергетике
     await conn.execute('''
@@ -54,6 +61,13 @@ async def save_energy_drink_to_db(conn, name, model, rating, description, date):
         INSERT INTO brands (name) VALUES ($1)
         ON CONFLICT (name) DO NOTHING
     ''', model)
+
+async def save_error_to_db(conn, message):
+    # Вставляем сообщение с ошибкой в таблицу errors
+    await conn.execute('''
+        INSERT INTO errors (message)
+        VALUES ($1)
+    ''', message)
 
 def parse_message(text):
     # Разбираем текст сообщения и извлекаем данные
@@ -70,7 +84,7 @@ def parse_message(text):
         try:
             date = datetime.strptime(date_str, '%d.%m.%Y').date()
         except ValueError:
-            # Если формат даты неверен, можно обработать исключение
+            # Если формат даты неверен, можем обработать исключение
             print(f'Дата в неверном формате: {date_str}')
             return None
 
@@ -79,8 +93,12 @@ def parse_message(text):
         model = parts[0].strip()
         name = parts[1].strip() if len(parts) > 1 else ''
 
+        print(f'Parsed data - Name: {name}, Model: {model}, Rating: {rating}, Description: {description}, Date: {date}')
+        
         return name, model, rating, description, date
-    return None
+    else:
+        # Если не удалось разобрать сообщение, сохраняем его в таблицу ошибок
+        return text
 
 async def ensure_authorized():
     if not await client.is_user_authorized():
@@ -110,8 +128,11 @@ async def main():
                 if message.text:
                     data = parse_message(message.text)
                     if data:
-                        name, model, rating, description, date = data
-                        await save_energy_drink_to_db(conn, name, model, rating, description, date)
+                        if isinstance(data, tuple):
+                            name, model, rating, description, date = data
+                            await save_energy_drink_to_db(conn, name, model, rating, description, date)
+                        else:
+                            await save_error_to_db(conn, data)
 
             # Завершение работы с клиентом
             await client.disconnect()
