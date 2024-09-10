@@ -88,12 +88,38 @@ if not unparsed_errors_df.empty:
     unparsed_errors_df.to_csv(unparsed_output_path, index=False, encoding='utf-8')
     print(f"Нераспарсенные данные сохранены в файл {unparsed_output_path}.")
 
-# Шаг 5: Объединяем данные из energy_drinks и parsed_errors
+# Шаг 5: Объединение данных из energy_drinks и parsed_errors
 if not parsed_errors_df.empty:
     merged_df = pd.concat([energy_drinks_df, parsed_errors_df], ignore_index=True)
 else:
     merged_df = energy_drinks_df
 
+# Применение изменений перед записью в CSV
+
+# 1. Разделение name и model (если в model больше одного слова, отделяем первое слово)
+def split_name_model(row):
+    model_words = row['model'].split()
+    if len(model_words) > 1:
+        # Если в модели больше одного слова, разделяем
+        row['model'] = model_words[0]  # Первое слово остаётся в model
+        row['name'] = ' '.join(model_words[1:])  # Остальные слова переносятся в name
+    return row
+
+merged_df = merged_df.apply(split_name_model, axis=1)
+
+# 2. Оставляем только числовое значение рейтинга
+merged_df['rating'] = merged_df['rating'].apply(lambda x: re.match(r'\d+(\.\d+)?', x).group() if re.match(r'\d+(\.\d+)?', x) else x)
+
+# 3. Приводим дату к формату YYYY-MM-DD
+def fix_date(date):
+    if re.match(r'\d{2}\.\d{2}\.\d{4}', date):
+        return pd.to_datetime(date, format='%d.%m.%Y').strftime('%Y-%m-%d')
+    elif re.match(r'\d{2}\.\d{2}\.\d{2}', date):
+        return pd.to_datetime(date, format='%d.%m.%y').strftime('%Y-%m-%d')
+    return date
+
+merged_df['date'] = merged_df['date'].apply(fix_date)
+
 # Шаг 6: Запись объединённых данных в новый CSV файл
 merged_df.to_csv(merged_output_path, index=False, encoding='utf-8')
-print(f"Данные успешно распарсены, объединены и сохранены в файл {merged_output_path}.")
+print(f"Данные успешно распарсены, изменены и сохранены в файл {merged_output_path}.")
