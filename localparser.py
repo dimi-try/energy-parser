@@ -42,9 +42,10 @@ parsed_data = []
 unparsed_data = []
 current_id = last_id + 1
 
+# Функция для извлечения секции текста с учетом многострочного описания
 def extract_section(text, section_name):
-    # Поиск с учетом регистра и пробелов
-    match = re.search(rf'{section_name}:\s*(.*?)($|\n)', text)
+    # Поиск с учетом регистра и многострочности
+    match = re.search(rf'{section_name}:\s*(.*?)(?=\n\S+:|$)', text, re.DOTALL)
     return match.group(1).strip() if match else ''
 
 # Проход по каждой строке в DataFrame
