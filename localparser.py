@@ -126,6 +126,12 @@ def fix_date(date):
 
 merged_df['date'] = merged_df['date'].apply(fix_date)
 
+# Определяем порядок столбцов
+column_order = ['id', 'name', 'model', 'rating', 'description', 'date']
+
+# Применяем порядок столбцов
+merged_df = merged_df.reindex(columns=column_order)
+
 # Шаг 6: Запись объединённых данных в новый CSV файл
 merged_df.to_csv(merged_output_path, index=False, encoding='utf-8')
 print(f"Данные успешно распарсены, изменены и сохранены в файл {merged_output_path}.")
