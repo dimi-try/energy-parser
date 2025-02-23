@@ -14,7 +14,12 @@ try:
     print(energy_drinks_df.head())
 except FileNotFoundError:
     print(f"Файл {energy_drinks_path} не найден.")
+    # Создаем пустой DataFrame с нужными столбцами, включая 'id'
     energy_drinks_df = pd.DataFrame(columns=['id', 'name', 'model', 'rating', 'description', 'date'])
+
+# Добавляем столбец 'id', если его нет в таблице
+if 'id' not in energy_drinks_df.columns:
+    energy_drinks_df['id'] = range(1, len(energy_drinks_df) + 1)
 
 # Определяем последний ID
 last_id = energy_drinks_df['id'].max() if not energy_drinks_df.empty else 0
@@ -26,41 +31,43 @@ try:
     print(errors_df.head())
 except FileNotFoundError:
     print(f"Файл {errors_path} не найден.")
-    errors_df = pd.DataFrame(columns=['message'])
+    errors_df = pd.DataFrame(columns=['error_message'])
 
 # Проверка на наличие данных и корректный формат
-if 'message' not in errors_df.columns:
-    raise ValueError("Столбец 'message' не найден в файле errors.csv")
+if 'error_message' not in errors_df.columns:
+    raise ValueError("Столбец 'error_message' не найден в файле errors.csv")
 
-# Шаг 3: Парсинг данных из столбца 'message'
+# Шаг 3: Парсинг данных из столбца 'error_message'
 parsed_data = []
 unparsed_data = []
 current_id = last_id + 1
 
-# Функции для поиска различных частей информации
+# Функция для извлечения секции текста с учетом многострочного описания
 def extract_section(text, section_name):
-    match = re.search(f'{section_name}:\s*([^\n]*)', text)
+    # Поиск с учетом регистра и многострочности
+    match = re.search(rf'{section_name}:\s*(.*?)(?=\n\S+:|$)', text, re.DOTALL)
     return match.group(1).strip() if match else ''
 
 # Проход по каждой строке в DataFrame
 for _, row in errors_df.iterrows():
-    message = row['message']
+    message = row['error_message']
     
     # Проверяем, что сообщение содержит данные
     if pd.notna(message) and len(message.strip()) > 0:
         name = extract_section(message, 'Название')
         rating = extract_section(message, 'Оценка')
-        alt_rating = extract_section(message, 'Альтернативная оценка')
         description = extract_section(message, 'Описание')
         date = extract_section(message, 'Дата')
         
+        # # Вывод для отладки
+        # print(f"Message: {message}")
+        # print(f"Extracted Name: {name}")
+        # print(f"Extracted Rating: {rating}")
+        # print(f"Extracted Description: {description}")
+        # print(f"Extracted Date: {date}")
+        
         # Проверяем, удалось ли распарсить основные части
         if name and rating and date:
-            # Обрабатываем описание
-            if alt_rating:
-                description += f"\nАльтернативная оценка: {alt_rating}"
-            
-            # Добавляем данные в список
             parsed_data.append({
                 "id": current_id,
                 "name": name,
@@ -71,9 +78,9 @@ for _, row in errors_df.iterrows():
             })
             current_id += 1
         else:
-            # Если данные не удалось распарсить, проверяем на наличие "Название:" и добавляем в нераспарсенные
-            if name:
-                unparsed_data.append({"message": message})
+            # Добавляем в нераспарсенные
+            unparsed_data.append({"error_message": message})
+
 
 # Проверка результатов парсинга
 parsed_errors_df = pd.DataFrame(parsed_data)
@@ -119,6 +126,12 @@ def fix_date(date):
     return date
 
 merged_df['date'] = merged_df['date'].apply(fix_date)
+
+# Определяем порядок столбцов
+column_order = ['id', 'name', 'model', 'rating', 'description', 'date']
+
+# Применяем порядок столбцов
+merged_df = merged_df.reindex(columns=column_order)
 
 # Шаг 6: Запись объединённых данных в новый CSV файл
 merged_df.to_csv(merged_output_path, index=False, encoding='utf-8')
