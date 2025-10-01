@@ -4,7 +4,7 @@ import re
 # Пути к файлам
 energy_drinks_path = './tables/energy_drinks.csv'
 errors_path = './tables/errors.csv'
-merged_output_path = './tables/merged_energy_drinks.csv'
+merged_output_path = './tables/data.csv'
 unparsed_output_path = './tables/unparsed_errors.csv'
 
 # Шаг 1: Чтение файла energy_drinks
